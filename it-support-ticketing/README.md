@@ -4,6 +4,22 @@ A practical n8n project exploring email-based IT support intake, **AI-assisted t
 
 > **Portfolio / demonstration project, not a production ticketing platform.** These files represent stages of a prototype and share the same example SmartDesk sheet structure. They are not intended to be enabled together without reviewing their duplicate intake triggers.
 
+## Workflow diagrams
+
+The following **simplified vector diagrams** show the principal steps of each workflow. They are included for quick viewing on GitHub; the original n8n editor screenshots are not included in this commit.
+
+### 01 — Basic Email Ticket Intake
+
+![Basic Gmail-to-Sheets ticket intake](images/01-basic-intake.svg)
+
+### 02 — AI-Assisted Ticket Triage
+
+![Gemini-based ticket classification and notifications](images/02-ai-triage.svg)
+
+### 03 — Daily Overdue Ticket Report
+
+![Scheduled overdue ticket reporting](images/03-overdue-report.svg)
+
 ## Workflows
 
 | File | Purpose | Trigger |
