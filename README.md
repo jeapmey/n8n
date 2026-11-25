@@ -7,6 +7,7 @@ A collection of hands-on **n8n workflow automation** projects covering integrati
 | Project | Description |
 | --- | --- |
 | [IT Support Ticketing — SmartDesk](it-support-ticketing/) | Email-to-ticket logging, AI-assisted classification, acknowledgements, urgent alerts and daily overdue-ticket reporting using Gmail, Google Sheets, Google Gemini and n8n. |
+| [Supplier Invoice Processing — AI-powered Accounts Payable](supplier-invoice-processing/) | PDF invoice extraction with Gemini, financial validation, Google Drive archiving, human approval and draft bill creation in Xero through a modular n8n sub-workflow. |
 
 ## About this collection
 
