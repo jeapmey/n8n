@@ -1,0 +1,432 @@
+{
+  "name": "Supplier Invoice Processing - Xero Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        -192
+      ],
+      "id": "6922ac39-37e6-4b8b-b012-e65861a1370a",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/connections",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        384,
+        -192
+      ],
+      "id": "9fd8699e-d29b-4cee-bb34-acd5ff18380e",
+      "name": "Xero - Get Connections"
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/api.xro/2.0/Contacts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "YOUR_XERO_TEST_TENANT_ID"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        608,
+        -192
+      ],
+      "id": "5ee1f67b-c60d-4786-be2b-6177dffa4447",
+      "name": "Xero - Get Contacts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('When Executed by Another Workflow')\n  .first().json;\n\nconst contacts = $input.all().flatMap(\n  item => item.json.Contacts || []\n);\n\nconst normalize = value =>\n  String(value || '').trim().toLowerCase();\n\nconst matches = contacts.filter(contact =>\n  contact.ContactStatus === 'ACTIVE' &&\n  normalize(contact.Name) ===\n  normalize(invoice.supplier_name)\n);\n\nconst supplier = matches.length === 1\n  ? matches[0]\n  : null;\n\nreturn [{\n  json: {\n    ...invoice,\n    xero_contact_id: supplier?.ContactID || null,\n    xero_contact_name: supplier?.Name || null,\n    supplier_match_status:\n      matches.length === 1 ? 'matched' :\n      matches.length > 1 ? 'ambiguous' :\n      'not_found'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -192
+      ],
+      "id": "9d8a9046-2828-43b1-a2a2-5b2ad7d18ec4",
+      "name": "Match Xero Supplier"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6d32476e-11e6-4bd0-a24c-c8b3d996fedb",
+              "leftValue": "={{ $json.supplier_match_status === 'matched' && $json.approval_status === 'approved' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1056,
+        -192
+      ],
+      "id": "8ff234fd-0a04-49f1-8aa8-23bd0cd90b5b",
+      "name": "Supplier Matched?"
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/api.xro/2.0/Accounts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "YOUR_XERO_TEST_TENANT_ID"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1280,
+        -288
+      ],
+      "id": "656df477-a48e-466f-8013-845ee77bd092",
+      "name": "Xero - Get Accounts"
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/api.xro/2.0/Invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "where",
+              "value": "={{ 'Type==\"ACCPAY\" AND InvoiceNumber==' + JSON.stringify($('Match Xero Supplier').first().json.invoice_number) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "YOUR_XERO_TEST_TENANT_ID"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1504,
+        -288
+      ],
+      "id": "2f97e1e5-cfdd-4092-bce2-e7b8470709ce",
+      "name": "Xero - Check Existing Bill"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0dc56eae-fa46-46d2-ac55-4a9f97353818",
+              "leftValue": "={{ Array.isArray($json.Invoices) && !$json.Invoices.some(bill => bill.Contact?.ContactID === $('Match Xero Supplier').first().json.xero_contact_id) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        -288
+      ],
+      "id": "e04c5bc7-cac9-42c3-be85-e1d0f5df1e99",
+      "name": "Bill Can Be Created?"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.xero.com/api.xro/2.0/Invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xero-tenant-id",
+              "value": "YOUR_XERO_TEST_TENANT_ID"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2176,
+        -384
+      ],
+      "id": "7ad88915-63a0-498a-9011-898eaa8d25fa",
+      "name": "Xero - Create Draft Bill"
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('Match Xero Supplier').first().json;\nconst bill = $input.first().json.Invoices?.[0];\n\nif (!bill?.InvoiceID || bill.HasErrors || bill.Status !== 'DRAFT') {\n  throw new Error('Xero draft bill creation could not be verified');\n}\n\nreturn [{\n  json: {\n    ...invoice,\n    accounting_platform: 'Xero',\n    accounting_status: 'draft_created',\n    xero_invoice_id: bill.InvoiceID,\n    xero_invoice_status: bill.Status,\n    xero_invoice_number: bill.InvoiceNumber,\n    xero_total_amount: bill.Total,\n    accounting_processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -384
+      ],
+      "id": "7d0c9de7-1b7a-4c9b-ba17-3b9cab733637",
+      "name": "Return Created Bill"
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('Match Xero Supplier').first().json;\n\nconst bill = $input.first().json.Invoices?.find(\n  item => item.Contact?.ContactID === invoice.xero_contact_id\n);\n\nif (!bill?.InvoiceID) {\n  throw new Error('Existing Xero bill could not be verified');\n}\n\nreturn [{\n  json: {\n    ...invoice,\n    accounting_platform: 'Xero',\n    accounting_status: 'already_exists',\n    xero_invoice_id: bill.InvoiceID,\n    xero_invoice_status: bill.Status,\n    xero_invoice_number: bill.InvoiceNumber,\n    xero_total_amount: bill.Total,\n    accounting_processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -192
+      ],
+      "id": "b6d66455-feee-4563-a98c-2e0fab8e6b71",
+      "name": "Return Existing Bill"
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $input.first().json;\n\nreturn [{\n  json: {\n    ...invoice,\n    accounting_platform: 'Xero',\n    accounting_status: 'review_required',\n    accounting_error:\n      invoice.approval_status !== 'approved'\n        ? 'Invoice has not been approved'\n        : 'Supplier could not be uniquely matched in Xero',\n    xero_invoice_id: null,\n    xero_invoice_status: null,\n    accounting_processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        -96
+      ],
+      "id": "856bd49c-176c-4859-915c-f30c54408b29",
+      "name": "Return Accounting Exception"
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('Match Xero Supplier').first().json;\n\nif (!Array.isArray(invoice.line_items) || !invoice.line_items.length) {\n  throw new Error('No invoice line items available');\n}\n\nif (invoice.vat_amount !== null && invoice.vat_amount !== 0) {\n  throw new Error('VAT treatment requires review');\n}\n\nconst accounts = $('Xero - Get Accounts').first().json.Accounts;\n\nconst account = accounts.find(a =>\n  a.Code === '412' &&\n  a.Status === 'ACTIVE' &&\n  a.Class === 'EXPENSE'\n);\n\nif (!account) {\n  throw new Error('Configured expense account unavailable');\n}\n\nconst lineItems = invoice.line_items.map(item => {\n  if (\n    !item.description ||\n    !Number.isFinite(item.quantity) ||\n    item.quantity <= 0 ||\n    !Number.isFinite(item.unit_price) ||\n    item.unit_price < 0\n  ) {\n    throw new Error('Invalid invoice line item');\n  }\n\n  return {\n    Description: item.description,\n    Quantity: item.quantity,\n    UnitAmount: item.unit_price,\n    AccountCode: account.Code,\n    TaxType: 'NONE'\n  };\n});\n\nconst calculatedTotal = lineItems.reduce(\n  (sum, item) => sum +\n    Math.round(item.Quantity * item.UnitAmount * 100),\n  0\n);\n\nif (calculatedTotal !== Math.round(invoice.total_amount * 100)) {\n  throw new Error('Line items do not match invoice total');\n}\n\nreturn [{\n  json: {\n    Invoices: [{\n      Type: 'ACCPAY',\n      Contact: {\n        ContactID: invoice.xero_contact_id\n      },\n      InvoiceNumber: invoice.invoice_number,\n      Date: invoice.invoice_date,\n      DueDate: invoice.due_date,\n      CurrencyCode: invoice.currency,\n      Status: 'DRAFT',\n      LineAmountTypes: 'NoTax',\n      LineItems: lineItems\n    }]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -384
+      ],
+      "id": "53c4254b-57fc-4b72-bf9c-3652ea21136c",
+      "name": "Prepare Xero Bill"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Xero - Get Connections": {
+      "main": [
+        [
+          {
+            "node": "Xero - Get Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xero - Get Contacts": {
+      "main": [
+        [
+          {
+            "node": "Match Xero Supplier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Xero - Get Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Xero Supplier": {
+      "main": [
+        [
+          {
+            "node": "Supplier Matched?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supplier Matched?": {
+      "main": [
+        [
+          {
+            "node": "Xero - Get Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Accounting Exception",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xero - Get Accounts": {
+      "main": [
+        [
+          {
+            "node": "Xero - Check Existing Bill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xero - Check Existing Bill": {
+      "main": [
+        [
+          {
+            "node": "Bill Can Be Created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bill Can Be Created?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Xero Bill",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Existing Bill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xero - Create Draft Bill": {
+      "main": [
+        [
+          {
+            "node": "Return Created Bill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Xero Bill": {
+      "main": [
+        [
+          {
+            "node": "Xero - Create Draft Bill",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
